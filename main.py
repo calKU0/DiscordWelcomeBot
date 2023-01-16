@@ -18,11 +18,9 @@ Database = mysql.connector.connect(
     user="root",
     password="",
     database="teststeam"
-)
+) 
 
-Cursor = Database.cursor()
-
-
+Cursor = Database.cursor(buffered=True)
 
 
 @bot.event
@@ -47,16 +45,21 @@ async def roll(interaction: discord.Interaction, range:int):
 @bot.tree.command(name="register",description="Register your steam profile")
 @app_commands.describe(steam_id = "Input your Steam ID")
 async def register(interaction:discord.Interaction, steam_id:str):
-    sql = "INSERT INTO users (user_ID, steam_ID) VALUES (%s,%s)"
-    val = (str(interaction.user.id), str(steam_id))
-    Cursor.execute(sql, val)
-    await interaction.response.send_message("Succesfully registered")
+    Cursor.execute(f"SELECT user_ID from users where user_ID={interaction.user.id}")
+    if Cursor.fetchone() == None:
+        sql = "INSERT INTO users (user_ID, steam_ID) VALUES (%s,%s)"
+        val = (str(interaction.user.id), str(steam_id))
+        Cursor.execute(sql, val)
+        await interaction.response.send_message("Succesfully registered!")
+    else:
+        await interaction.response.send_message("You have already registered!")
 
 
 #Steam Games owned
 @bot.tree.command(name="games", description="Owned games on steam")
 async def games(interaction: discord.Integration):
-    ID = "76561198074294120"
+    Cursor.execute(f"SELECT steam_ID from users where user_ID={interaction.user.id}")
+    ID = str(Cursor.fetchone()).split("'")[1]
     slink1 = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key="
     slink2 = "&steamid=" + ID + "&include_appinfo=1&format=json"
     slink = slink1 + KEY + slink2
@@ -68,7 +71,7 @@ async def games(interaction: discord.Integration):
     steam = r.json()
     
     #JSON output with information about each game owned
-    await interaction.response.send_message(f"Games owned:" + str(steam["response"]["game_count"]))
+    await interaction.response.send_message(f"Games owned: " + str(steam["response"]["game_count"]))
 
 
     
