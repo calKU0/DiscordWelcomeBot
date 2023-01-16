@@ -2,12 +2,28 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import random
+import json
 import requests
+import mysql.connector
 
 
-TOKEN = ""
-KEY = ""
+
+with open("config.json") as config:
+    content = json.load(config)
+    TOKEN = content["DISCORD_TOKEN"]
+    KEY = content["STEAM_TOKEN"]
 bot = commands.Bot(command_prefix=">", intents = discord.Intents.all()) 
+Database = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="teststeam"
+)
+
+Cursor = Database.cursor()
+
+
+
 
 @bot.event
 async def on_ready():
@@ -20,12 +36,22 @@ async def on_ready():
 
 #Roll command with choice of 10 and 100
 @bot.tree.command(name="roll", description="Rolls a random number")
-@app_commands.choices(choices=[app_commands.Choice(name="100",value="100"), app_commands.Choice(name="10",value="10")])
-async def roll(interaction: discord.Interaction, choices:app_commands.Choice[str]):
-    if choices.value == "10":
-        await interaction.response.send_message(f"Rolled: {random.randint(1,10)}")
-    else:
-        await interaction.response.send_message(f"Rolled: {random.randint(1,100)}")
+@app_commands.describe(range = "Input your Steam ID")
+async def roll(interaction: discord.Interaction, range:int):
+    await interaction.response.send_message(f"Rolled: {random.randint(1,range)}")
+
+
+
+#Registering a user
+
+@bot.tree.command(name="register",description="Register your steam profile")
+@app_commands.describe(steam_id = "Input your Steam ID")
+async def register(interaction:discord.Interaction, steam_id:str):
+    sql = "INSERT INTO users (user_ID, steam_ID) VALUES (%s,%s)"
+    val = (str(interaction.user.id), str(steam_id))
+    Cursor.execute(sql, val)
+    await interaction.response.send_message("Succesfully registered")
+
 
 #Steam Games owned
 @bot.tree.command(name="games", description="Owned games on steam")
