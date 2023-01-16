@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import random
 
-TOKEN = process.env.TOKEN
+TOKENN = process.env.TOKENN
 bot = commands.Bot(command_prefix=">", intents = discord.Intents.all()) 
 
 @bot.event
@@ -25,4 +25,4 @@ async def roll(interaction: discord.Interaction, choices:app_commands.Choice[str
         await interaction.response.send_message(f"Rolled: {random.randint(1,100)}")
 
     
-bot.run(TOKEN)
+bot.run(TOKENN)
