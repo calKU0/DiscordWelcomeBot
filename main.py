@@ -5,8 +5,9 @@ import random
 import json
 import requests
 from replit import Database
+from datetime import datetime
 
-def steamapi(index):
+def steamapigames(index):
   ID = db["Users"]["Steam_ID"][index]
   slink1 = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key="
   slink2 = "&steamid=" + str(ID) + "&include_appinfo=1&format=json"
@@ -16,6 +17,14 @@ def steamapi(index):
   r = requests.get(slink)
 
   #convert to JSON and save to another variable
+  steam = r.json()
+  return steam
+
+def steamapiprofile(id):
+  slink1 = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key="
+  slink2 = "&steamids=" + str(id) + "&format=json"
+  slink = slink1 + KEY + slink2
+  r = requests.get(slink)
   steam = r.json()
   return steam
 
@@ -48,7 +57,7 @@ async def roll(interaction: discord.Interaction, range: int):
 
 #Registering a user
 @bot.tree.command(name="register", description="Register your steam profile")
-@app_commands.describe(steam_id="Input your Steam ID",)
+@app_commands.describe(steam_id="Input your Steam ID")
 async def register(interaction: discord.Interaction, steam_id: str):
   if str(interaction.user.id) in db["Users"]["User_ID"]:
     await interaction.response.send_message("You are already registered!")
@@ -78,7 +87,7 @@ async def games(interaction: discord.Interaction):
   try:
     if str(interaction.user.id) in str(db["Users"]["User_ID"]).split("'"):
       index = list(db["Users"]["User_ID"]).index(str(interaction.user.id))
-      steam = steamapi(index)
+      steam = steamapigames(index)
 
       #JSON output
       await interaction.response.send_message("Games owned: " + str(steam["response"]["game_count"]))
@@ -94,7 +103,7 @@ async def games(interaction: discord.Interaction):
 async def totalplaytime(interaction: discord.Interaction,sorted: app_commands.Choice[str]):
     if str(interaction.user.id) in str(db["Users"]["User_ID"]).split("'"):
       index = list(db["Users"]["User_ID"]).index(str(interaction.user.id))
-      steam = steamapi(index)
+      steam = steamapigames(index)
       games = steam["response"]["games"]
 
       # Sort the games by playtime_forever
@@ -113,5 +122,43 @@ async def totalplaytime(interaction: discord.Interaction,sorted: app_commands.Ch
     else:
         await interaction.response.send_message("You have to register! (type /register)")
 
+#Profile information
+@bot.tree.command(name="profile", description="Shows steam profile information")
+@app_commands.describe(steam_id="Enter profile ID")
+async def profile(interaction: discord.Interaction, steam_id: str):
+  steam = steamapiprofile(steam_id)
+  ts = steam['response']['players'][0]['timecreated']
+  ts1 = steam['response']['players'][0]['lastlogoff']
+  converted = datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
+  converted1 = datetime.utcfromtimestamp(ts1).strftime('%Y-%m-%d')
+
+  a = steam['response']['players'][0]['personastate']
+  if a == 0:
+    state = "Offline"
+  elif a == 1:
+    state = "Online"
+  elif a == 2:
+    state = "Busy"
+  elif a == 3:
+    state = "Away"
+  elif a == 4:
+    state = "Snooze"
+  elif a == 5:
+    state = "Looking to trade"
+  else:
+    state = "Looking to play"
+    
+
+  embed = discord.Embed(title="User Info")
+  embed.set_thumbnail(url=f"{steam['response']['players'][0]['avatarmedium']}")
+  embed.add_field(name ="Name",value=steam['response']['players'][0]['personaname'])
+  embed.add_field(name ="State",value=state)
+  if "gameid" in steam['response']['players'][0]:
+    embed.add_field(name ="Currently playing",value=steam['response']['players'][0]['gameextrainfo'])
+  else:
+    embed.add_field(name ="Currently playing",value="Nothing")
+  embed.add_field(name ="Joined at",value=converted)
+  embed.add_field(name ="Last seen",value=converted1)
+  await interaction.response.send_message(embed=embed)
 
 bot.run(TOKEN)
