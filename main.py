@@ -1,12 +1,23 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import disnake
 import random
 import json
 import requests
 from replit import Database
 
+def steamapi(index):
+  ID = db["Users"]["Steam_ID"][index]
+  slink1 = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key="
+  slink2 = "&steamid=" + str(ID) + "&include_appinfo=1&format=json"
+  slink = slink1 + KEY + slink2
+
+  #Sent API Get request and save respond to a variable
+  r = requests.get(slink)
+
+  #convert to JSON and save to another variable
+  steam = r.json()
+  return steam
 
 with open("config.json") as config:
     content = json.load(config)
@@ -67,50 +78,35 @@ async def games(interaction: discord.Interaction):
   try:
     if str(interaction.user.id) in str(db["Users"]["User_ID"]).split("'"):
       index = list(db["Users"]["User_ID"]).index(str(interaction.user.id))
-      ID = db["Users"]["Steam_ID"][index]
-      slink1 = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key="
-      slink2 = "&steamid=" + str(ID) + "&include_appinfo=1&format=json"
-      slink = slink1 + KEY + slink2
-
-      #Sent API Get request and save respond to a variable
-      r = requests.get(slink)
-
-      #convert to JSON and save to another variable
-      steam = r.json()
-
+      steam = steamapi(index)
 
       #JSON output
       await interaction.response.send_message("Games owned: " + str(steam["response"]["game_count"]))
     else:
       await interaction.response.send_message("You have to register! (type /register)")
   except Exception as e:
+    print(e)
     await interaction.response.send_message("Your steamID does not exists in steam. Did you registered with correct steamID?")
 
 #Steam games playtime
 @bot.tree.command(name="playtime", description="Shows your time spent in games")
-async def totalplaytime(interaction: discord.Interaction):
+@app_commands.choices(sorted = [app_commands.Choice(name="From highest",value="1"), app_commands.Choice(name="From lowest",value="0")])
+async def totalplaytime(interaction: discord.Interaction,sorted: app_commands.Choice[str]):
     if str(interaction.user.id) in str(db["Users"]["User_ID"]).split("'"):
       index = list(db["Users"]["User_ID"]).index(str(interaction.user.id))
-      ID = db["Users"]["Steam_ID"][index]
-      slink1 = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key="
-      slink2 = "&steamid=" + str(ID) + "&include_appinfo=1&format=json"
-      slink = slink1 + KEY + slink2
-
-      #Sent API Get request and save respond to a variable
-      r = requests.get(slink)
-
-      #convert to JSON and save to another variable
-      steam = r.json()
-
+      steam = steamapi(index)
       games = steam["response"]["games"]
 
       # Sort the games by playtime_forever
-      games.sort(key=lambda x: x["playtime_forever"], reverse=True)
+      if sorted.value=="1":
+        games.sort(key=lambda x: x["playtime_forever"], reverse=True)
+      else:
+        games.sort(key=lambda x: x["playtime_forever"], reverse=False)
 
       x=1
-      embed = disnake.Embed(title="Playtime")
+      embed = discord.Embed(title="Playtime")
       for response in games:
-          embed.add_field(name =f"{x}. {response['name']}",value=str(round(response["playtime_forever"]/60,1)) + "h")
+          embed.add_field(name =f"{x}. {response['name']}",value="Hours played: " + str(round(response["playtime_forever"]/60,1)))
           x+=1
       await interaction.response.send_message(embed=embed)
 
